@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sales & Revenue Analysis Dashboard</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-page: #f5f6fa;
+      --bg-card: #ffffff;
+      --bg-secondary: #f0f2f8;
+      --text-primary: #1a1d2e;
+      --text-secondary: #6b7280;
+      --text-muted: #9ca3af;
+      --border: rgba(0,0,0,0.08);
+      --accent-blue: #378ADD;
+      --accent-green: #1D9E75;
+      --accent-amber: #BA7517;
+      --accent-purple: #7F77DD;
+      --accent-gray: #888780;
+      --radius-md: 8px;
+      --radius-lg: 14px;
+      --up: #3B6D11;
+      --down: #A32D2D;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg-page: #13141a;
+        --bg-card: #1e2030;
+        --bg-secondary: #252840;
+        --text-primary: #e8eaf0;
+        --text-secondary: #9ca3af;
+        --text-muted: #6b7280;
+        --border: rgba(255,255,255,0.08);
+        --up: #9FE1CB;
+        --down: #F09595;
+      }
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg-page);
+      color: var(--text-primary);
+      min-height: 100vh;
+      padding: 24px 16px;
+    }
+
+    .dash { max-width: 1100px; margin: 0 auto; }
+
+    /* Header */
+    .header {
+      display: flex; justify-content: space-between; align-items: flex-start;
+      flex-wrap: wrap; gap: 16px; margin-bottom: 24px;
+    }
+    .header-title { font-size: 22px; font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 10px; }
+    .header-title i { font-size: 22px; color: var(--accent-blue); }
+    .header-sub { font-size: 13px; color: var(--text-secondary); margin-top: 4px; }
+    .controls { display: flex; gap: 8px; flex-wrap: wrap; }
+    .controls select {
+      font-size: 13px; padding: 8px 12px;
+      border-radius: var(--radius-md); border: 1px solid var(--border);
+      background: var(--bg-card); color: var(--text-primary);
+      cursor: pointer; outline: none;
+    }
+    .controls select:focus { border-color: var(--accent-blue); }
+
+    /* KPI Cards */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 14px; margin-bottom: 20px;
+    }
+    .kpi {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 18px 20px;
+    }
+    .kpi-icon { font-size: 20px; color: var(--accent-blue); margin-bottom: 10px; }
+    .kpi-label { font-size: 12px; color: var(--text-secondary); letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 6px; }
+    .kpi-value { font-size: 26px; font-weight: 600; color: var(--text-primary); line-height: 1; }
+    .kpi-change { font-size: 12px; margin-top: 6px; display: flex; align-items: center; gap: 3px; }
+    .up { color: var(--up); }
+    .down { color: var(--down); }
+
+    /* Chart Layout */
+    .charts-row {
+      display: grid;
+      grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+      gap: 14px; margin-bottom: 14px;
+    }
+    .bottom-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 14px;
+    }
+    .chart-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 20px 22px;
+    }
+    .chart-title { font-size: 15px; font-weight: 600; color: var(--text-primary); }
+    .chart-sub { font-size: 12px; color: var(--text-secondary); margin-top: 3px; margin-bottom: 16px; }
+
+    /* Legend */
+    .legend { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 12px; font-size: 12px; color: var(--text-secondary); }
+    .legend span { display: flex; align-items: center; gap: 6px; }
+    .dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+    .dot-dash { width: 10px; height: 3px; border-radius: 2px; background: #B4B2A9; border: 1px dashed #888; flex-shrink: 0; }
+
+    /* Products */
+    .product-list { list-style: none; }
+    .product-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 0; border-bottom: 1px solid var(--border);
+    }
+    .product-item:last-child { border-bottom: none; }
+    .rank { font-size: 12px; font-weight: 600; color: var(--text-muted); min-width: 18px; }
+    .product-name { font-size: 13px; color: var(--text-primary); flex: 1; }
+    .product-bar-wrap { width: 90px; background: var(--bg-secondary); border-radius: 4px; height: 6px; overflow: hidden; }
+    .product-bar { height: 6px; border-radius: 4px; background: var(--accent-blue); }
+    .product-val { font-size: 13px; font-weight: 600; color: var(--text-primary); min-width: 52px; text-align: right; }
+
+    /* Filter buttons */
+    .filter-row { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
+    .filter-btn {
+      font-size: 12px; padding: 5px 12px;
+      border-radius: var(--radius-md); border: 1px solid var(--border);
+      background: transparent; color: var(--text-secondary);
+      cursor: pointer; transition: all 0.15s;
+    }
+    .filter-btn:hover { background: var(--bg-secondary); }
+    .filter-btn.active {
+      background: #EBF3FB; color: #185FA5; border-color: #B5D4F4;
+    }
+    @media (prefers-color-scheme: dark) {
+      .filter-btn.active { background: #0C3058; color: #85B7EB; border-color: #185FA5; }
+    }
+
+    /* Footer */
+    .footer { text-align: center; font-size: 12px; color: var(--text-muted); margin-top: 28px; padding-top: 16px; border-top: 1px solid var(--border); }
+
+    @media (max-width: 700px) {
+      .charts-row, .bottom-row { grid-template-columns: 1fr; }
+      .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 420px) {
+      .kpi-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="dash">
+
+  <!-- Header -->
+  <div class="header">
+    <div>
+      <div class="header-title">
+        <i class="ti ti-chart-bar"></i>
+        Sales & Revenue Analysis Dashboard
+      </div>
+      <div class="header-sub">Interactive KPI tracking · Jan – Dec 2025</div>
+    </div>
+    <div class="controls">
+      <select id="regionFilter" onchange="updateDash()">
+        <option value="all">All Regions</option>
+        <option value="north">North</option>
+        <option value="south">South</option>
+        <option value="east">East</option>
+        <option value="west">West</option>
+      </select>
+      <select id="yearFilter" onchange="updateDash()">
+        <option value="2025">2025</option>
+        <option value="2024">2024</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- KPI Cards -->
+  <div class="kpi-grid">
+    <div class="kpi">
+      <div class="kpi-icon"><i class="ti ti-currency-dollar"></i></div>
+      <div class="kpi-label">Total Revenue</div>
+      <div class="kpi-value" id="kpi-rev">$4.82M</div>
+      <div class="kpi-change up"><i class="ti ti-arrow-up-right"></i> +14.3% vs last year</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-icon" style="color:var(--accent-green)"><i class="ti ti-shopping-cart"></i></div>
+      <div class="kpi-label">Total Orders</div>
+      <div class="kpi-value" id="kpi-ord">12,480</div>
+      <div class="kpi-change up"><i class="ti ti-arrow-up-right"></i> +8.7% vs last year</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-icon" style="color:var(--accent-amber)"><i class="ti ti-receipt"></i></div>
+      <div class="kpi-label">Avg Order Value</div>
+      <div class="kpi-value" id="kpi-aov">$386</div>
+      <div class="kpi-change up"><i class="ti ti-arrow-up-right"></i> +5.1% vs last year</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-icon" style="color:var(--accent-purple)"><i class="ti ti-trending-up"></i></div>
+      <div class="kpi-label">Gross Margin</div>
+      <div class="kpi-value" id="kpi-gm">38.2%</div>
+      <div class="kpi-change down"><i class="ti ti-arrow-down-right"></i> -1.4% vs last year</div>
+    </div>
+  </div>
+
+  <!-- Row 1: Trend + Donut -->
+  <div class="charts-row">
+    <div class="chart-card">
+      <div class="chart-title">Revenue trend</div>
+      <div class="chart-sub">Monthly revenue vs target</div>
+      <div class="legend">
+        <span><span class="dot" style="background:#378ADD;"></span>Revenue</span>
+        <span><span class="dot-dash"></span>Target</span>
+      </div>
+      <div style="position:relative; width:100%; height:230px;">
+        <canvas id="trendChart" role="img" aria-label="Line chart showing monthly revenue vs target for 2025">Monthly revenue vs target 2025.</canvas>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Revenue by category</div>
+      <div class="chart-sub">Share of total revenue</div>
+      <div style="position:relative; width:100%; height:200px;">
+        <canvas id="catChart" role="img" aria-label="Doughnut chart of revenue by product category">Electronics 35%, Apparel 22%, Home and Garden 18%, Software 16%, Other 9%.</canvas>
+      </div>
+      <div class="legend" style="margin-top:12px;" id="cat-legend"></div>
+    </div>
+  </div>
+
+  <!-- Row 2: Products + Quarterly -->
+  <div class="bottom-row">
+    <div class="chart-card">
+      <div class="chart-title">Top-performing products</div>
+      <div class="chart-sub">By revenue, 2025</div>
+      <ul class="product-list" id="product-list"></ul>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Quarterly performance</div>
+      <div class="chart-sub">Revenue vs profit ($K)</div>
+      <div class="filter-row">
+        <button class="filter-btn active" onclick="setQView('both',this)">Both</button>
+        <button class="filter-btn" onclick="setQView('rev',this)">Revenue</button>
+        <button class="filter-btn" onclick="setQView('profit',this)">Profit</button>
+      </div>
+      <div style="position:relative; width:100%; height:170px;">
+        <canvas id="qtrChart" role="img" aria-label="Grouped bar chart of quarterly revenue and profit">Q1: Revenue $1025K Profit $390K, Q2: $1355K / $515K, Q3: $1595K / $608K, Q4: $1845K / $702K.</canvas>
+      </div>
+      <div class="legend" style="margin-top:12px;">
+        <span><span class="dot" style="background:#378ADD;"></span>Revenue</span>
+        <span><span class="dot" style="background:#1D9E75;"></span>Profit</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    Sales & Revenue Analysis Dashboard · Built with Chart.js · Data for demo purposes
+  </div>
+</div>
+
+<script>
+  const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const gridColor = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)';
+  const tickColor = isDark ? '#6b7280' : '#9ca3af';
+
+  const allData = {
+    '2025': {
+      months: ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
+      revenue: [310,295,420,385,460,510,490,530,575,620,700,525],
+      target:  [320,320,400,400,450,450,500,500,550,600,650,550]
+    },
+    '2024': {
+      months: ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
+      revenue: [270,250,360,340,395,440,420,465,500,540,610,445],
+      target:  [280,280,350,350,400,400,440,440,480,520,580,490]
+    }
+  };
+
+  const catData = {
+    labels: ['Electronics','Apparel','Home & Garden','Software','Other'],
+    values: [35,22,18,16,9],
+    colors: ['#378ADD','#1D9E75','#BA7517','#7F77DD','#888780']
+  };
+
+  const products = [
+    {name:'ProMax Monitor',   val:680},
+    {name:'CloudSuite Pro',   val:510},
+    {name:'ErgoDesk Plus',    val:430},
+    {name:'SmartHub X2',      val:380},
+    {name:'VisionCam 4K',     val:295}
+  ];
+
+  const qtrData = {
+    labels:  ['Q1','Q2','Q3','Q4'],
+    revenue: [1025,1355,1595,1845],
+    profit:  [390,515,608,702]
+  };
+
+  function buildProducts() {
+    const ul = document.getElementById('product-list');
+    const max = products[0].val;
+    ul.innerHTML = products.map((p,i) => `
+      <li class="product-item">
+        <span class="rank">${i+1}</span>
+        <span class="product-name">${p.name}</span>
+        <div class="product-bar-wrap"><div class="product-bar" style="width:${Math.round(p.val/max*100)}%;"></div></div>
+        <span class="product-val">$${p.val}K</span>
+      </li>`).join('');
+  }
+
+  function buildCatLegend() {
+    document.getElementById('cat-legend').innerHTML = catData.labels.map((l,i) =>
+      `<span><span class="dot" style="background:${catData.colors[i]};"></span>${l} ${catData.values[i]}%</span>`
+    ).join('');
+  }
+
+  let trendChart, catChart, qtrChart;
+
+  function initCharts() {
+    const d = allData['2025'];
+
+    trendChart = new Chart(document.getElementById('trendChart'), {
+      type: 'line',
+      data: {
+        labels: d.months,
+        datasets: [
+          { label:'Revenue', data: d.revenue, borderColor:'#378ADD', backgroundColor:'rgba(55,138,221,0.09)', borderWidth:2, pointRadius:3, pointBackgroundColor:'#378ADD', tension:0.35, fill:true },
+          { label:'Target',  data: d.target,  borderColor:'#B4B2A9', borderWidth:1.5, borderDash:[5,4], pointRadius:0, tension:0.35, fill:false }
+        ]
+      },
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{display:false}, tooltip:{callbacks:{label:c=>'$'+c.raw+'K'}} },
+        scales:{
+          x:{ grid:{display:false}, ticks:{font:{size:11},color:tickColor} },
+          y:{ grid:{color:gridColor}, ticks:{font:{size:11},color:tickColor,callback:v=>'$'+v+'K'} }
+        }
+      }
+    });
+
+    catChart = new Chart(document.getElementById('catChart'), {
+      type: 'doughnut',
+      data: { labels: catData.labels, datasets:[{ data:catData.values, backgroundColor:catData.colors, borderWidth:0, hoverOffset:5 }] },
+      options: {
+        responsive:true, maintainAspectRatio:false, cutout:'62%',
+        plugins:{ legend:{display:false}, tooltip:{callbacks:{label:c=>c.label+': '+c.raw+'%'}} }
+      }
+    });
+
+    qtrChart = new Chart(document.getElementById('qtrChart'), {
+      type: 'bar',
+      data: {
+        labels: qtrData.labels,
+        datasets: [
+          { label:'Revenue', data:qtrData.revenue, backgroundColor:'#378ADD', borderRadius:5, barPercentage:0.55 },
+          { label:'Profit',  data:qtrData.profit,  backgroundColor:'#1D9E75', borderRadius:5, barPercentage:0.55 }
+        ]
+      },
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{display:false}, tooltip:{callbacks:{label:c=>'$'+c.raw+'K'}} },
+        scales:{
+          x:{ grid:{display:false}, ticks:{font:{size:11},color:tickColor} },
+          y:{ grid:{color:gridColor}, ticks:{font:{size:11},color:tickColor,callback:v=>'$'+v+'K'} }
+        }
+      }
+    });
+  }
+
+  function updateDash() {
+    const yr = document.getElementById('yearFilter').value;
+    const d = allData[yr];
+    trendChart.data.labels = d.months;
+    trendChart.data.datasets[0].data = d.revenue;
+    trendChart.data.datasets[1].data = d.target;
+    trendChart.update();
+
+    if (yr === '2024') {
+      document.getElementById('kpi-rev').textContent = '$4.22M';
+      document.getElementById('kpi-ord').textContent = '11,480';
+      document.getElementById('kpi-aov').textContent = '$367';
+      document.getElementById('kpi-gm').textContent = '39.6%';
+    } else {
+      document.getElementById('kpi-rev').textContent = '$4.82M';
+      document.getElementById('kpi-ord').textContent = '12,480';
+      document.getElementById('kpi-aov').textContent = '$386';
+      document.getElementById('kpi-gm').textContent = '38.2%';
+    }
+  }
+
+  function setQView(v, btn) {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    qtrChart.data.datasets[0].hidden = v === 'profit';
+    qtrChart.data.datasets[1].hidden = v === 'rev';
+    qtrChart.update();
+  }
+
+  buildProducts();
+  buildCatLegend();
+  initCharts();
+</script>
+</body>
+</html>
